@@ -15,5 +15,25 @@ variable "region" {
 
 variable "datalake_name" {
     description = "For GCS bucket acting as data lake. Must be globally unique."
-    default = "stock-price-vol-datalake-bucket"
+    default = "stock-price-ind-json-datalake"
+}
+
+variable "dataset_id" {
+    description = "Name for GCS BigQuery Dataset."
+    default = "stocks_portfolio_testing"
+}
+
+variable "ds_friendly_name" {
+    description = "Friendly name for GCS BigQuery dataset."
+    default = "Dataset for all project tables."
+}
+
+variable "ds_description" {
+    description = "BigQuery dataset description."
+    default = "BigQuery dataset holding all the tables for the project."
+}
+
+variable "table_expiration_ms" {
+    description = "Time set in ms for BigQuery table deletion."
+    default = 86400000 # 1 day
 }

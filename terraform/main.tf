@@ -12,7 +12,7 @@ provider "google" {
   region      = var.region
 }
 
-resource "google_storage_bucket" "stock-price-volume-bucket" {
+resource "google_storage_bucket" "datalake-bucket" {
   name          = var.datalake_name
   location      = var.geo_location
   force_destroy = true
@@ -25,5 +25,17 @@ resource "google_storage_bucket" "stock-price-volume-bucket" {
     action {
       type = "AbortIncompleteMultipartUpload"
     }
+  }
+}
+
+resource "google_bigquery_dataset" "big-query-dataset" {
+  dataset_id                  = var.dataset_id
+  friendly_name               = var.ds_friendly_name
+  description                 = var.ds_description
+  location                    = var.geo_location
+  default_table_expiration_ms = var.table_expiration_ms
+
+  labels = {
+    env = "default"
   }
 }

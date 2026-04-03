@@ -1,0 +1,57 @@
+id: ingest_json_stock_data
+namespace: company.team
+
+inputs:
+  - id: stockArr
+    type: ARRAY
+    itemType: STRING
+  - id: indicatorArr
+    type: ARRAY
+    itemType: STRING
+
+tasks:
+  - id: price_vol_loop
+    type: io.kestra.plugin.core.flow.ForEach
+    values: "{{ inputs.stockArr }}"
+    tasks: 
+      - id: retrieve_price_vol
+        type: io.kestra.plugin.scripts.python.Script
+        outputFiles:
+          - "stockFile.json"
+
+tasks:
+  - id: outer_loop
+    type: io.kestra.plugin.core.flow.ForEach
+    values: "{{ inputs.array1 }}"
+    tasks:
+      - id: inner_loop
+        type: io.kestra.plugin.core.flow.ForEach
+        values: "{{ inputs.array2 }}"
+        tasks:
+          - id: process_strings
+            type: io.kestra.plugin.scripts.python.Script
+            outputFiles:
+              - "file1.json"
+              - "file2.json"
+            script: |
+              import json
+              val1 = "{{ parent.taskrun.value }}"
+              val2 = "{{ taskrun.value }}"
+              
+              # Generate your 2 JSON files
+              with open("file1.json", "w") as f:
+                  json.dump({"source": "array1", "value": val1, "partner": val2}, f)
+              with open("file2.json", "w") as f:
+                  json.dump({"source": "array2", "value": val2, "partner": val1}, f)
+
+          - id: upload_file1
+            type: io.kestra.plugin.gcp.gcs.Upload
+            from: "{{ outputs.process_strings.outputFiles['file1.json'] }}"
+            to: "gs://your-bucket/outputs/{{ parent.taskrun.value }}_{{ taskrun.value }}_1.json"
+            projectId: "your-gcp-project"
+
+          - id: upload_file2
+            type: io.kestra.plugin.gcp.gcs.Upload
+            from: "{{ outputs.process_strings.outputFiles['file2.json'] }}"
+            to: "gs://your-bucket/outputs/{{ parent.taskrun.value }}_{{ taskrun.value }}_2.json"
+            projectId: "your-gcp-project"
