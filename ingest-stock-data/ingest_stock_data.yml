@@ -73,7 +73,7 @@ tasks:
 
               with open("indicatorData.json", "w") as f:
                 json.dump(data, f)
-
+                
           - id: upload_indicator_data
             type: io.kestra.plugin.gcp.gcs.Upload
             from: "{{ outputs.retrieve_ind_data.outputFiles['indicatorData.json'] }}"
