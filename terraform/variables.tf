@@ -1,5 +1,6 @@
-variable "project_id" {
+variable "projectid" {
     description = "Project ID from GCP."
+    type = string
     default = "securities-portfolio-testing"
 }
 

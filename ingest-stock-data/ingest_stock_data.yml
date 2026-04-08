@@ -13,45 +13,69 @@ tasks:
   - id: price_vol_loop
     type: io.kestra.plugin.core.flow.ForEach
     values: "{{ inputs.stockArr }}"
+    env:
+      API_TOKEN: "{{ secret('AV_TOKEN') }}"
     tasks: 
       - id: retrieve_price_vol
         type: io.kestra.plugin.scripts.python.Script
         outputFiles:
           - "stockFile.json"
+        script: |
+              import requests
+              import json
+              import os
+
+              token = os.environ['API_TOKEN']
+              stock_sym = "{{ taskrun.value }}"
+
+              url = f'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={stock_sym}&apikey={token}'
+              r = requests.get(url)
+              data = r.json()
+              
+              with open("stockFile.json", "w") as f:
+                json.dump(data, f)
+      
+      - id: upload_price_vol_to_datalake
+        type: io.kestra.plugin.gcp.gcs.Upload
+        serviceAccount: "{{ env.GCP_SERVICE_ACCOUNT_KEY }}"
+        from: "{{ outputs.retrieve_price_vol.outputFiles['stockFile.json'] }}"
+        # plan is to use bucket name given as env variable
+        to: "gs://{{ env.GCS_BUCKET_NAME }}/{{ taskrun.value }}/price_vol_data.json"
+        projectId: "{{ env.TF_VAR_projectid }}"
 
 tasks:
-  - id: outer_loop
+  - id: stock_sym_outer_loop
     type: io.kestra.plugin.core.flow.ForEach
-    values: "{{ inputs.array1 }}"
+    values: "{{ inputs.stockArr }}"
+    env:
+      API_TOKEN: "{{ secret('AV_TOKEN') }}"
     tasks:
-      - id: inner_loop
+      - id: indicator_inner_loop
         type: io.kestra.plugin.core.flow.ForEach
-        values: "{{ inputs.array2 }}"
+        values: "{{ inputs.indicatorArr }}"
         tasks:
-          - id: process_strings
+          - id: retrieve_ind_data
             type: io.kestra.plugin.scripts.python.Script
             outputFiles:
-              - "file1.json"
-              - "file2.json"
+              - "indicatorData.json"
             script: |
+              import requests
               import json
-              val1 = "{{ parent.taskrun.value }}"
-              val2 = "{{ taskrun.value }}"
+              import os 
+
+              token = os.environ['API_TOKEN']
+              stock_sym = "{{ parent.taskrun.value }}"
+              indicator_sym = "{{ taskrun.value }}"
               
-              # Generate your 2 JSON files
-              with open("file1.json", "w") as f:
-                  json.dump({"source": "array1", "value": val1, "partner": val2}, f)
-              with open("file2.json", "w") as f:
-                  json.dump({"source": "array2", "value": val2, "partner": val1}, f)
+              url = f'https://www.alphavantage.co/query?function={indicator_sym}&symbol={stock_sym}&interval=daily&time_period=10&series_type=close&apikey={token}'
+              r = requests.get(url)
+              data = r.json()
 
-          - id: upload_file1
-            type: io.kestra.plugin.gcp.gcs.Upload
-            from: "{{ outputs.process_strings.outputFiles['file1.json'] }}"
-            to: "gs://your-bucket/outputs/{{ parent.taskrun.value }}_{{ taskrun.value }}_1.json"
-            projectId: "your-gcp-project"
+              with open("indicatorData.json", "w") as f:
+                json.dump(data, f)
 
-          - id: upload_file2
+          - id: upload_indicator_data
             type: io.kestra.plugin.gcp.gcs.Upload
-            from: "{{ outputs.process_strings.outputFiles['file2.json'] }}"
-            to: "gs://your-bucket/outputs/{{ parent.taskrun.value }}_{{ taskrun.value }}_2.json"
-            projectId: "your-gcp-project"
+            from: "{{ outputs.retrieve_ind_data.outputFiles['indicatorData.json'] }}"
+            to: "gs://{{ env.GCS_BUCKET_NAME }}/{{ parent.taskrun.value }}/{{ taskrun.value }}.json"
+            projectId: "{{ env.TF_VAR_projectid }}"
